@@ -1,0 +1,7 @@
+ffmpeg -stream_loop -1 -re -i test_song.mp3 -acodec libopus -ar 48000 -ac 2 -ab 128k -f rtp 'rtp://127.0.0.1:3009'
+
+ffplay -protocol_whitelist file,rtp,udp -i audio.sdp
+
+
+--
+ffmpeg -stream_loop -1 -re -i test_song.mp3 -acodec libopus -ar 48000 -ac 2 -ab 128k -f rtp -sdp_file output.sdp -payload_type 101 -ssrc 12345678 rtp://127.0.0.1:11752

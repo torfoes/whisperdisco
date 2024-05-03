@@ -1,0 +1,10 @@
+v=0
+o=- 0 0 IN IP4 127.0.0.1
+s=No Name
+c=IN IP4 127.0.0.1
+t=0 0
+a=tool:libavformat 61.1.100
+m=audio 42424 RTP/AVP 101
+b=AS:128
+a=rtpmap:101 opus/48000/2
+a=fmtp:101 sprop-stereo=1
