@@ -112,8 +112,7 @@ async function setupServer() {
 
         // Only emit router capabilities after client requests them
         socket.emit('routerCapabilities', {
-            routerRtpCapabilities: router.rtpCapabilities,
-            producerId: audioProducer.id
+            routerRtpCapabilities: router.rtpCapabilities
         });
 
         socket.on('createTransport', async () => {
@@ -145,8 +144,9 @@ async function setupServer() {
             }
         });
 
+
+        // issue is here -- connect consume existing transport
         socket.on('connect-transport', async (data, callback) => {
-            // console.log('connect-transport received:', data);
             const { transportId, dtlsParameters } = data;
 
             try {
@@ -154,7 +154,9 @@ async function setupServer() {
                 if (!transport) {
                     throw new Error('Transport not found');
                 }
+
                 await transport.connect({ dtlsParameters });
+
                 console.log('Transport connected successfully');
                 callback({ status: 'ok' });
             } catch (error) {
@@ -168,31 +170,11 @@ async function setupServer() {
 
         socket.on('requestConsume', async (data) => {
             console.log('Request to consume received:', data);
-            const { rtpCapabilities, producerId } = data;
+            const { rtpCapabilities, transportId } = data;
 
-            // Log the received producerId and the existing audioProducer's ID for comparison
-            console.log('Checking producer ID:', producerId, 'against server producer ID:', audioProducer.id);
 
-            // Check if the producerId received is defined and matches the existing producer's ID
-            if (!producerId) {
-                console.error('Producer ID is missing in consume request');
-                socket.emit('error', 'Producer ID is missing in consume request');
-                return;
-            }
-
-            // Find the producer by the given ID
-            const producer = audioProducer.id === producerId ? audioProducer : null;
-            if (!producer) {
-                console.error('Audio producer not available for the given producerId:', producerId);
-                socket.emit('error', { error: 'Audio producer not available' });
-                return;
-            } else {
-                console.log('Producer ID validated successfully. Producer available for consumption.');
-            }
-
-            // Check if the router can consume this producer with the given RTP capabilities
             if (!router.canConsume({
-                producerId: producer.id,  // Ensure you are checking against the specific producer
+                producerId: audioProducer.id,
                 rtpCapabilities
             })) {
                 console.error("Cannot consume: incompatible RTP Capabilities for producerId:", producerId);
@@ -200,27 +182,27 @@ async function setupServer() {
                 return;
             }
 
+            const transport = getTransportById(transportId)
+
             try {
-                const consumer = await audioTransport.consume({
-                    producerId: producer.id,
+                const consumer = await transport.consume({
+                    producerId: audioProducer.id,
                     rtpCapabilities,
                     paused: true
                 });
 
                 // Log the creation of the consumer
-                console.log('Consumer created successfully:', {
-                    consumerId: consumer.id,
-                    producerId: producer.id,
-                });
+                console.log('Consumer created successfully:', consumer.id);
 
                 socket.emit('consumerCreated', {
                     id: consumer.id,
-                    producerId: producer.id,
+                    producerId: audioProducer.id,
                     kind: consumer.kind,
                     rtpParameters: consumer.rtpParameters,
                     type: consumer.type,
                     producerPaused: consumer.producerPaused
                 });
+
                 // console.log('Consumer details sent to client');
                 await consumer.resume();
                 console.log('Consumer resumed');

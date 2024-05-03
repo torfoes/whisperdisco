@@ -6,7 +6,6 @@ import {unmountComponentAtNode} from "react-dom";
 const App = () => {
   const deviceRef = useRef(null);
   const transportRef = useRef(null);
-  const serverProducerIdRef = useRef(null);
 
   const [audioTrack, setAudioTrack] = useState(null);
   const audioRef = useRef(null);
@@ -17,16 +16,14 @@ const App = () => {
 
     socket.emit('requestRouterCapabilities');
 
-    socket.on('routerCapabilities', async ({ routerRtpCapabilities, producerId }) => {
-      console.log('Router capabilities received:', routerRtpCapabilities, producerId);
+    socket.on('routerCapabilities', async ({ routerRtpCapabilities }) => {
+      console.log('Router capabilities received:', routerRtpCapabilities);
       if (!deviceRef.current) {
         const newDevice = new Device();
         try {
           await newDevice.load({ routerRtpCapabilities });
           deviceRef.current = newDevice;
-          serverProducerIdRef.current = producerId;  // Store producer ID right away
           console.log('Device loaded successfully.', routerRtpCapabilities);
-          // console.log('Received producer ID from server:', producerId);
           socket.emit('createTransport');
         } catch (error) {
           console.error('Failed to load the device:', error);
@@ -36,7 +33,7 @@ const App = () => {
 
 
     socket.on('transportCreated', async (transportParams) => {
-      console.log('Transport created:', transportParams);
+      console.log('Server transport params:', transportParams);
       if (!deviceRef.current) {
         console.error('Device is not initialized.');
         return;
@@ -44,7 +41,8 @@ const App = () => {
 
       try {
         transportRef.current = deviceRef.current.createRecvTransport(transportParams);
-        console.log('Transport set up successfully.', transportParams);
+
+        console.log('Receive transport set up successfully.', transportRef.current.direction);
 
         transportRef.current.on('connect', ({ dtlsParameters }, callback, errback) => {
           console.log('Attempting to connect transport...');
@@ -72,16 +70,11 @@ const App = () => {
           }
         });
 
-        if (serverProducerIdRef.current) {
-          console.log('Requesting to consume audio from server...');
           socket.emit('requestConsume', {
             rtpCapabilities: deviceRef.current.rtpCapabilities,
-            producerId: serverProducerIdRef.current
+            transportId: transportRef.current.id
           });
 
-        } else {
-          console.error('Server producer ID not yet received or unavailable.');
-        }
 
       } catch (error) {
         console.error('Failed to set up the transport:', error);
@@ -92,7 +85,9 @@ const App = () => {
       if (transportRef.current) {
         try {
           const consumer = await transportRef.current.consume(consumeParams);
-          setAudioTrack(consumer.track);
+          const { track } = consumer;
+
+          setAudioTrack(track);
         } catch (error) {
           console.error('Could not consume audio:', error);
         }
@@ -102,12 +97,6 @@ const App = () => {
     });
 
   }, []);
-
-  useEffect(() => {
-    if (audioTrack) {
-      audioRef.current.srcObject = new MediaStream([audioTrack]);
-    }
-  }, [audioTrack]);
 
   useEffect(() => {
     const fetchTransportStats = async () => {
@@ -133,9 +122,37 @@ const App = () => {
   }, [transportRef.current]);
 
 
+  useEffect(() => {
+    const audioElement = audioRef.current;
+
+    const handlePlay = () => console.log('Audio is playing');
+    const handleError = (e) => console.error('Error playing audio:', e);
+
+    audioElement.addEventListener('play', handlePlay);
+    audioElement.addEventListener('error', handleError);
+
+    return () => {
+      audioElement.removeEventListener('play', handlePlay);
+      audioElement.removeEventListener('error', handleError);
+    };
+  }, []);
+
+
+  useEffect(() => {
+    if (audioTrack) {
+      const stream = new MediaStream([audioTrack]);
+      console.log('Stream active:', stream.active);  // Should be true
+      console.log('Track enabled:', audioTrack.enabled); // Should be true
+      console.log('Track readyState:', audioTrack.readyState); // Should be 'live'
+      console.log('Track muted:', audioTrack.muted); // Should be false
+      audioRef.current.srcObject = stream;
+    }
+  }, [audioTrack]);
+
+
   return (
       <div className="App">
-        <h1>MediaSoup Audio Player</h1>
+        <h1>Whisper Disco</h1>
         <audio ref={audioRef} autoPlay controls />
         {!audioTrack && <p>Waiting for audio...</p>}
       </div>
