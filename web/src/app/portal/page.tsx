@@ -8,7 +8,7 @@ export default function CaptivePage() {
     const router = useRouter();
 
     const handleJoinClick = () => {
-        router.push('/stream');
+        window.open('/stream', '_blank');
     };
 
     return (
