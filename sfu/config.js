@@ -9,7 +9,7 @@ const config = {
     },
     ioCorsOptions: {
         cors: {
-            origin: ['http://localhost:3000', 'http://localhost:3001'], // Explicit origins
+            origin: ['*'],
             credentials: true,
             methods: ['GET', 'POST']
         },
