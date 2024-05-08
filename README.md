@@ -8,7 +8,7 @@ ffmpeg -stream_loop -1 -re -i test_song.mp3 -acodec libopus -ar 48000 -ac 2 -ab 
 
 Verifying audio playback:
 ```bash
-ffplay -protocol_whitelist file,rtp,udp -i audio.sdp
+ffplay -protocol_whitelist file,rtp,udp -i output.sdp
 ```
 
 Start the SFU:
