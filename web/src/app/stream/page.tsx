@@ -19,9 +19,7 @@ export default function StreamPage() {
     useEffect(() => {
         const socket = io('http://localhost:3000');
         console.log('Socket connection initialized.');
-
         socket.emit('requestRouterCapabilities');
-
 
         socket.on('routerCapabilities', async ({ routerRtpCapabilities }) => {
             console.log('Router capabilities received:', routerRtpCapabilities);
